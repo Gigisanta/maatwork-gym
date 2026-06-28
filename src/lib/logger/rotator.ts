@@ -1,9 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { rotateLogFile, writeToFile, cleanupOldLogs, ensureLogsDir } from './storage';
+import { rotateLogFile, writeToFile, cleanupOldLogs, ensureLogsDir, LOGS_DIR } from './storage';
 import { loggerConfig } from './config';
-
-const LOGS_DIR = path.join(process.cwd(), 'logs');
 
 export interface RotatorOptions {
   prefix: string;

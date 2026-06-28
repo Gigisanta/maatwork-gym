@@ -6,7 +6,7 @@ import { promisify } from 'util';
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 
-const LOGS_DIR = path.join(process.cwd(), 'logs');
+export const LOGS_DIR = process.env.VERCEL ? path.join('/tmp', 'logs') : path.join(process.cwd(), 'logs');
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const MAX_HISTORY_DAYS = 7;
 
