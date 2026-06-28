@@ -46,6 +46,13 @@ const navItems = [
     description: 'Planes de ejercicio',
   },
   {
+    id: 'ejercicios',
+    label: 'Ejercicios',
+    href: '/main/ejercicios',
+    icon: Dumbbell,
+    description: 'Biblioteca técnica',
+  },
+  {
     id: 'dietas',
     label: 'Dietas',
     href: '/main/dietas',

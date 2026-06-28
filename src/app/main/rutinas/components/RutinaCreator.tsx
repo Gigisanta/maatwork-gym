@@ -19,15 +19,6 @@ const DIAS_SEMANA = [
 
 const GRUPOS_MUSCULARES = ['pecho', 'espalda', 'piernas', 'brazos', 'hombros', 'core', 'cardio', 'abdomen'];
 
-const EJERCICIOS_COMUNES = [
-  'Press de banca', 'Press inclinado', 'Press militar', 'Fondos', 'Aperturas con mancuernas',
-  'Dominadas', 'Jalón al pecho', 'Remo con barra', 'Remo con mancuerna',
-  'Sentadilla', 'Sentadilla hack', 'Prensa', 'Extensión de cuádriceps', 'Curl de bíceps',
-  'Curl martillo', 'Extensión de tríceps', 'Press francés', 'Elevaciones laterales',
-  'Elevaciones frontales', 'Pullover', 'Hip thrust', 'Peso muerto', 'Buenos días',
-  'Abdominales', 'Plancha', 'Mountain climbers', 'Burpees', 'Cardio en cinta',
-];
-
 interface Ejercicio {
   id: string;
   nombre: string;
@@ -82,6 +73,12 @@ interface Rutina {
   }[];
 }
 
+interface CatalogExercise {
+  name: string;
+  target: string;
+  muscleGroup: string;
+}
+
 interface RutinaCreatorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -102,6 +99,16 @@ export function RutinaCreator({ open, onOpenChange, rutina, onSave, isLoading }:
   });
   const [diasSeleccionados, setDiasSeleccionados] = useState<number[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<{ diaId: string; ejercicioIdx: number; text: string } | null>(null);
+  const [catalogExercises, setCatalogExercises] = useState<CatalogExercise[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    fetch('/api/exercises?limit=1324')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => setCatalogExercises(payload?.exercises || []))
+      .catch(() => setCatalogExercises([]));
+  }, [open]);
 
   useEffect(() => {
     if (rutina) {
@@ -194,11 +201,44 @@ export function RutinaCreator({ open, onOpenChange, rutina, onSave, isLoading }:
     });
   };
 
-  const filteredSuggestions = (diaId: string, ejercicioIdx: number, text: string) => {
+  const filteredSuggestions = (text: string) => {
     if (text.length < 2) return [];
-    return EJERCICIOS_COMUNES.filter(e =>
-      e.toLowerCase().includes(text.toLowerCase())
-    ).slice(0, 5);
+    const query = text.toLowerCase();
+    return catalogExercises
+      .filter((exercise) =>
+        `${exercise.name} ${exercise.target} ${exercise.muscleGroup}`.toLowerCase().includes(query)
+      )
+      .slice(0, 6);
+  };
+
+  const gruposMusculares = Array.from(
+    new Set([
+      ...GRUPOS_MUSCULARES,
+      ...catalogExercises.flatMap((exercise) => [exercise.target, exercise.muscleGroup]).filter(Boolean),
+    ])
+  ).sort();
+
+  const aplicarEjercicioCatalogo = (diaId: string, ejercicioId: string, exercise: CatalogExercise) => {
+    setFormData({
+      ...formData,
+      dias: formData.dias.map((dia) =>
+        dia.id === diaId
+          ? {
+              ...dia,
+              ejercicios: dia.ejercicios.map((ejercicio) =>
+                ejercicio.id === ejercicioId
+                  ? {
+                      ...ejercicio,
+                      nombre: exercise.name,
+                      grupoMuscular: exercise.target || exercise.muscleGroup || ejercicio.grupoMuscular,
+                    }
+                  : ejercicio
+              ),
+            }
+          : dia
+      ),
+    });
+    setShowSuggestions(null);
   };
 
   const handleSubmit = () => {
@@ -373,16 +413,16 @@ export function RutinaCreator({ open, onOpenChange, rutina, onSave, isLoading }:
                                 />
                                 {showSuggestions?.diaId === dia.id && showSuggestions?.ejercicioIdx === idx && showSuggestions.text && (
                                   <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-popover shadow-lg p-1 overflow-hidden">
-                                    {filteredSuggestions(dia.id, idx, showSuggestions.text).map((suggestion) => (
+                                    {filteredSuggestions(showSuggestions.text).map((suggestion) => (
                                       <button
-                                        key={suggestion}
-                                        onClick={() => {
-                                          actualizarEjercicio(dia.id, ejercicio.id, 'nombre', suggestion);
-                                          setShowSuggestions(null);
-                                        }}
+                                        key={suggestion.name}
+                                        onClick={() => aplicarEjercicioCatalogo(dia.id, ejercicio.id, suggestion)}
                                         className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted text-foreground transition-colors"
                                       >
-                                        {suggestion}
+                                        <span className="block capitalize">{suggestion.name}</span>
+                                        <span className="block text-xs capitalize text-muted-foreground">
+                                          {suggestion.target || suggestion.muscleGroup}
+                                        </span>
                                       </button>
                                     ))}
                                   </div>
@@ -420,7 +460,7 @@ export function RutinaCreator({ open, onOpenChange, rutina, onSave, isLoading }:
                                   aria-label="Grupo muscular"
                                 >
                                   <option value="">Grupo</option>
-                                  {GRUPOS_MUSCULARES.map(g => (
+                                  {gruposMusculares.map(g => (
                                     <option key={g} value={g}>{g}</option>
                                   ))}
                                 </select>
